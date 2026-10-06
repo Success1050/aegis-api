@@ -10,6 +10,7 @@ export * from './utils/pii.util';
 export * from './utils/time.util';
 export * from './utils/phone.util';
 export * from './utils/coordinate.util';
+export * from './utils/sms-encoding.util';
 export * from './services/mail.service';
 export * from './services/idempotency.service';
 export * from './common.module';

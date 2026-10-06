@@ -171,7 +171,7 @@ async function main() {
   );
 
   console.log(`Created Incident Number: ${inc2.number}`);
-  if (!inc2.number.startsWith('INC-00000')) {
+  if (!/^INC-\d{6}$/.test(inc2.number)) {
     throw new Error(`Unexpected sequential number format: ${inc2.number}`);
   }
   console.log('✅ Sequential numbering and duplicate detection verified!\n');

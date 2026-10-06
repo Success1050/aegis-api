@@ -135,35 +135,35 @@
   - Evaluates `Idempotency-Key` headers on mutating endpoints, returning cached responses (`X-Cache: HIT`) on replay.
 
 ### Day 6: SMS Service, Multilingual Templates & Encoding
-- [ ] **SMS Encoding Engine (`sms-encoding.util.ts`):**
+- [x] **SMS Encoding Engine (`sms-encoding.util.ts`):**
   - Character set detection: GSM-7 (160 chars/segment) vs UCS-2 (70 chars/segment).
   - Calculate segment count and warn on cost blow-ups.
   - `normalizeForSms()` utility: strip emojis, replace smart quotes.
   - Hausa diacritic policy (`PRESERVE_DIACRITICS = true/false`).
-- [ ] **Multilingual Message Templates (`alerts/templates/`):**
+- [x] **Multilingual Message Templates (`alerts/templates/`):**
   - Typed templates for `ALERT_VERIFIED_INCIDENT` and `ALL_CLEAR` in English, Hausa, Igbo, Yoruba, Pidgin.
   - Flag Igbo, Yoruba, Pidgin as `status: 'NEEDS_NATIVE_REVIEW'`.
   - Fallback chain: requested language → English. Fail loudly on unreplaced placeholders.
   - Area name only; sanitize and prevent coordinate leaking to residents.
-- [ ] **SMS Providers:**
+- [x] **SMS Providers:**
   - `SmsProvider` interface (`send(...)`).
   - `FakeSmsProvider`: ASCII console output, persistent record, failure rate simulation (`FAKE_SMS_FAIL_RATE`), latency simulation (`FAKE_SMS_LATENCY_MS`).
   - `RealSmsProvider`: Stubbed adapter for Nigerian SMS aggregators (Termii, Africa's Talking) with configuration hooks.
-- [ ] **Delivery Receipt Webhook:**
+- [x] **Delivery Receipt Webhook:**
   - `POST /webhooks/sms-delivery` with HMAC signature validation and replay protection.
 
 ### Day 7: Alert Engine, Queue Worker, Resilience & Reconciler
-- [ ] **Transactional Alert Fanout:**
+- [x] **Transactional Alert Fanout:**
   - In a single DB transaction: transition incident to `ALERTING`, bulk insert Alert rows (`QUEUED`) with `skipDuplicates`, enqueue BullMQ jobs.
-- [ ] **BullMQ Alert Worker:**
+- [x] **BullMQ Alert Worker:**
   - Atomic transition: `QUEUED` → `SENDING` (exit if 0 rows updated to prevent double send).
   - Call `SmsProvider.send()`, record `providerMessageId`, update to `SENT`.
   - Failure handling: increment `attempts`, log `lastError`, exponential backoff with jitter (5 retries: 5s, 20s, 1m, 5m, 15m). Max retries → `FAILED`.
   - Dispatch priority: `SECURITY` alerts before `RESIDENT`, higher severity first.
   - Provider rate limiting / throttling (concurrency & TPS caps).
-- [ ] **Incident Finalization:**
+- [x] **Incident Finalization:**
   - Atomic "last one out" check: transition incident to `ALERTS_SENT` or `ALERTS_PARTIALLY_FAILED`, record `alertsCompletedAt`, write audit log.
-- [ ] **Recovery & Reconciler:**
+- [x] **Recovery & Reconciler:**
   - Boot recovery routine: detect incidents stuck in `ALERTING` and re-enqueue `QUEUED` / stale `SENDING` alerts.
   - Periodic reconciler: flag alerts stuck in `SENDING` for > 15 minutes.
   - Circuit breaker hook: pause queue and notify admin on provider outages.

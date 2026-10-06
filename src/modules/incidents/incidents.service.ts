@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   BadRequestException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
@@ -32,6 +33,8 @@ import {
   RecipientPreviewResponseDto,
 } from './dto/recipient-preview.dto';
 import { maskPhone } from '../../common/utils/pii.util';
+import { renderAlertTemplate } from '../alerts/templates';
+import { AlertQueueService } from '../alerts/queue/alert-queue.service';
 
 export const INCIDENT_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
   PENDING_REVIEW: [IncidentStatus.VERIFIED, IncidentStatus.DISMISSED],
@@ -52,6 +55,7 @@ export class IncidentsService {
     private readonly auditService: AuditService,
     private readonly geoService: GeoService,
     private readonly configService: ConfigService,
+    @Optional() private readonly alertQueueService?: AlertQueueService,
   ) {}
 
   /**
@@ -372,17 +376,29 @@ export class IncidentsService {
         );
       }
 
-      // Prepare Initial Alert Records (Unique constraint on (incidentId, userId, channel))
+      // Prepare Initial Alert Records using Multilingual Template Engine
+      const allowUnreviewed = this.configService.get<boolean>('policies.allowUnreviewedTemplates', false);
+      const preserveDiacritics = this.configService.get<boolean>('sms.preserveDiacritics', false);
+      const areaName = incident.zone?.name || 'your community';
+
       const alertRows = selection.recipients.map((r) => {
-        const areaName = incident.zone?.name || 'your community';
-        const typeLabel = incident.type.replace(/_/g, ' ').toLowerCase();
+        const rendered = renderAlertTemplate({
+          templateType: 'ALERT_VERIFIED_INCIDENT',
+          language: r.user.preferredLanguage,
+          incidentNumber: incident.number,
+          incidentType: incident.type,
+          areaName,
+          allowUnreviewed,
+          preserveDiacritics,
+        });
+
         return {
           incidentId: incident.id,
           userId: r.user.id,
           phoneSnapshot: r.user.phone,
-          language: r.user.preferredLanguage,
+          language: rendered.usedLanguage,
           channel: AlertChannel.SMS,
-          message: `AEGIS ALERT [${incident.number}]: Verified ${typeLabel} reported near ${areaName}. Stay alert and inform family.`,
+          message: rendered.text,
           status: AlertStatus.QUEUED,
         };
       });
@@ -419,6 +435,29 @@ export class IncidentsService {
     this.logger.log(
       `[INCIDENT_VERIFY] Incident ${incident.number} verified by ${actor.id}. Queued ${result.recipientCount} alerts.`,
     );
+
+    // 6. Asynchronous Queue Enqueueing
+    if (this.alertQueueService && result.recipientCount > 0) {
+      const queuedAlerts = await this.prisma.alert.findMany({
+        where: { incidentId: incident.id, status: AlertStatus.QUEUED },
+        include: { user: { select: { role: true } } },
+      });
+
+      const queueJobs = queuedAlerts.map((a) => ({
+        alertId: a.id,
+        incidentId: incident.id,
+        userId: a.userId,
+        userRole: a.user.role,
+        phone: a.phoneSnapshot,
+        message: a.message,
+        severity: incident.severity,
+      }));
+
+      await this.alertQueueService.enqueueBatch(queueJobs);
+      this.logger.log(
+        `[INCIDENT_VERIFY] Enqueued ${queueJobs.length} alert job(s) for ${incident.number} into dispatch engine.`,
+      );
+    }
 
     const refreshed = await this.prisma.incident.findUnique({
       where: { id: incident.id },
