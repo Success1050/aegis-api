@@ -1,0 +1,242 @@
+// ==========================================
+// AEGIS Phase 1 — Prisma Schema Definition
+// Database: PostgreSQL 15+
+// ==========================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ------------------------------------------
+// Enums
+// ------------------------------------------
+
+enum Role {
+  RESIDENT
+  SECURITY
+  ADMIN
+}
+
+enum Language {
+  ENGLISH
+  HAUSA
+  IGBO
+  YORUBA
+  PIDGIN
+}
+
+enum IncidentType {
+  POSSIBLE_INTRUSION
+  SUSPICIOUS_PERSON
+  SUSPICIOUS_VEHICLE
+  FIRE
+  OTHER
+}
+
+enum IncidentSource {
+  MANUAL // Phase 1 manual reporting; extensible for CAMERA_AI in Phase 2
+}
+
+enum Severity {
+  LOW      // Default radius: 500m
+  MEDIUM   // Default radius: 1000m
+  HIGH     // Default radius: 2000m
+  CRITICAL // Default radius: 3000m
+}
+
+enum IncidentStatus {
+  PENDING_REVIEW
+  VERIFIED
+  ALERTING
+  ALERTS_SENT
+  ALERTS_PARTIALLY_FAILED
+  DISMISSED
+  RESOLVED
+}
+
+enum AlertChannel {
+  SMS // Extensible for VOICE, WHATSAPP, PUSH in future phases
+}
+
+enum AlertStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+}
+
+// ------------------------------------------
+// 1. User Model
+// ------------------------------------------
+model User {
+  id                 String    @id @default(uuid()) @db.Uuid
+  name               String
+  phone              String    @unique // E.164 format (+234...)
+  passwordHash       String?   // Nullable: residents who only receive SMS do not log in
+  latitude           Decimal?  @db.Decimal(10, 7)
+  longitude          Decimal?  @db.Decimal(10, 7)
+  locationUpdatedAt  DateTime?
+  preferredLanguage  Language  @default(ENGLISH)
+  role               Role      @default(RESIDENT)
+  zoneId             String?   @db.Uuid
+  zone               Zone?     @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  alertsEnabled      Boolean   @default(true) // Resident opt-out support
+  isActive           Boolean   @default(true) // Soft-delete / deactivation
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  // Incident Relations
+  reportedIncidents  Incident[] @relation("ReportedIncidents")
+  verifiedIncidents  Incident[] @relation("VerifiedIncidents")
+  dismissedIncidents Incident[] @relation("DismissedIncidents")
+  alerts             Alert[]
+
+  @@index([isActive, alertsEnabled])
+  @@index([latitude, longitude]) // Critical for geospatial bounding-box prefilter
+  @@map("users")
+}
+
+// ------------------------------------------
+// 2. Zone Model (Community Boundaries)
+// ------------------------------------------
+model Zone {
+  id           String     @id @default(uuid()) @db.Uuid
+  name         String
+  centerLat    Decimal    @db.Decimal(10, 7)
+  centerLng    Decimal    @db.Decimal(10, 7)
+  radiusMeters Int        @default(2000)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  users        User[]
+  incidents    Incident[]
+
+  @@map("zones")
+}
+
+// ------------------------------------------
+// 3. Incident Model (Alerting Engine)
+// ------------------------------------------
+model Incident {
+  id                 String         @id @default(uuid()) @db.Uuid
+  number             String         @unique // Sequential human-readable ID e.g. INC-000001
+  type               IncidentType
+  source             IncidentSource @default(MANUAL)
+  latitude           Decimal        @db.Decimal(10, 7)
+  longitude          Decimal        @db.Decimal(10, 7)
+  zoneId             String?        @db.Uuid
+  zone               Zone?          @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+  description        String         @db.Text
+  severity           Severity
+  status             IncidentStatus @default(PENDING_REVIEW)
+  alertRadiusMeters  Int            // Snapshotted at creation time
+
+  reportedById       String         @db.Uuid
+  reportedBy         User           @relation("ReportedIncidents", fields: [reportedById], references: [id])
+
+  verifiedById       String?        @db.Uuid
+  verifiedBy         User?          @relation("VerifiedIncidents", fields: [verifiedById], references: [id])
+
+  dismissedById      String?        @db.Uuid
+  dismissedBy        User?          @relation("DismissedIncidents", fields: [dismissedById], references: [id])
+
+  dismissReason      String?        @db.Text
+  verifiedAt         DateTime?
+  dismissedAt        DateTime?
+  alertsCompletedAt  DateTime?
+
+  version            Int            @default(1) // Optimistic locking for race-safe atomic state transitions
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  alerts             Alert[]
+
+  @@index([status, createdAt])
+  @@index([type, createdAt])
+  @@index([zoneId])
+  @@map("incidents")
+}
+
+// ------------------------------------------
+// 4. Alert Model (Delivery Fan-Out)
+// ------------------------------------------
+model Alert {
+  id                String       @id @default(uuid()) @db.Uuid
+  incidentId        String       @db.Uuid
+  incident          Incident     @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  userId            String       @db.Uuid
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phoneSnapshot     String       // E.164 phone number snapshotted at time of alert
+  language          Language     // Language rendered
+  channel           AlertChannel @default(SMS)
+  message           String       @db.Text // Rendered message body snapshot
+  status            AlertStatus  @default(QUEUED)
+  attempts          Int          @default(0)
+  lastError         String?      @db.Text
+  providerMessageId String?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  // Strict backbone constraint: an incident recipient receives only one alert per channel
+  @@unique([incidentId, userId, channel])
+  @@index([incidentId, status])
+  @@map("alerts")
+}
+
+// ------------------------------------------
+// 5. AuditLog Model (Append-Only Trail)
+// ------------------------------------------
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @db.Uuid
+  action     String   // e.g. INCIDENT_CREATED, INCIDENT_VERIFIED, INCIDENT_DISMISSED
+  entityType String   // INCIDENT, USER, ZONE, CONFIG
+  entityId   String
+  before     Json?
+  after      Json?
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ------------------------------------------
+// 6. Idempotency Record Model
+// ------------------------------------------
+model IdempotencyRecord {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  endpoint    String
+  requestHash String
+  statusCode  Int
+  response    Json
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+  @@map("idempotency_records")
+}
+
+// ------------------------------------------
+// 7. Incident Sequence Counter Model
+// ------------------------------------------
+model IncidentSequence {
+  id        Int      @id @default(autoincrement())
+  current   Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("incident_sequences")
+}
