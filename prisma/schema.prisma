@@ -78,7 +78,10 @@ model User {
   id                 String    @id @default(uuid()) @db.Uuid
   name               String
   phone              String    @unique // E.164 format (+234...)
+  email              String?   @unique // Optional login identifier & credential dispatch target
   passwordHash       String?   // Nullable: residents who only receive SMS do not log in
+  houseNumber        String?   // Compound or house identifier (zone-based registration)
+  areaDescription    String?   // Street, quarter, or landmark
   latitude           Decimal?  @db.Decimal(10, 7)
   longitude          Decimal?  @db.Decimal(10, 7)
   locationUpdatedAt  DateTime?

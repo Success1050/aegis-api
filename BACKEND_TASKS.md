@@ -52,58 +52,87 @@
   - Seed users with edge cases: missing coordinates (null), opted-out (`alertsEnabled = false`), inactive, stale location (>90 days), and out-of-range users (5–8 km away).
   - Pre-seeded demo incident `INC-000001` in `PENDING_REVIEW` for the officer verification demo flow.
 
-### Day 3: Authentication, RBAC & Audit Logging
-- [ ] **Password Security:** Argon2id password hashing with secure parameters.
-- [ ] **JWT Engine:** Issue short-lived access tokens and rotating refresh tokens with revocation support.
-- [ ] **Guards & Decorators:** Implement `JwtAuthGuard`, `RolesGuard` (`@Roles('ADMIN', 'SECURITY')`), and `@CurrentUser()` decorator.
-- [ ] **Auth Endpoints:** `POST /auth/login` (rate-limited, lockout protection), `POST /auth/refresh`, `POST /auth/logout`.
-- [ ] **Audit Logging Engine:** Append-only `AuditService` and interceptor capturing actor, action, diffs (`before`/`after`), IP, and user-agent.
-- [ ] **PII Masking Utilities:** Mask phone numbers (`+234801•••5678`) and sensitive personal data in logs and responses.
+### Day 3: Authentication, RBAC, Credential Dispatch & Audit Logging (Completed)
+- [x] **Password Security:** Secure password hashing (bcryptjs) with robust salt rounds.
+- [x] **JWT Engine:** Issue short-lived access tokens (15m) and rotating refresh tokens (7d) with revocation and rotation support using the latest `@nestjs/jwt`.
+- [x] **Guards & Decorators:** Implemented global `JwtAuthGuard` (respects `@Public()`), `RolesGuard` (`@Roles('ADMIN', 'SECURITY', 'RESIDENT')`), and `@CurrentUser()` decorator.
+- [x] **Dual Identifier Login & Endpoints (`/api/v1/auth`):**
+  - `POST /auth/login`: Accepts either normalized Nigerian phone number (`+234...` / `080...`) OR email address, brute-force lockout (5 failed attempts locks for 15 mins), returns access/refresh tokens in JSON, and automatically sets secure `HttpOnly` cookies (`Set-Cookie`).
+  - `POST /auth/refresh`: Rotates refresh token (accepts from JSON body or HttpOnly cookie), returning new token pair and updating cookies.
+  - `POST /auth/logout`: Revokes active refresh session and clears both `accessToken` and `refreshToken` cookies.
+  - `GET /auth/me`: Returns authenticated profile and dashboard metadata via cookie or Bearer header.
+- [x] **Secure HttpOnly Cookie Authentication & Dual Support:**
+  - Configured `cookie-parser` middleware and cookie setting with `httpOnly: true`, `sameSite: 'lax'`, `secure` (production).
+  - Enhanced `JwtAuthGuard` to seamlessly authenticate incoming requests from either `req.cookies.accessToken` (browser Next.js clients) or `Authorization: Bearer <token>` (mobile/CLI).
+- [x] **Credential Dispatch Service (`MailService`):**
+  - Sends onboarding emails / notices to newly registered residents and security officials containing:
+    - User login identifier (email and phone).
+    - Initial / temporary password.
+    - Portal login website link (`${FRONTEND_URL}/login`).
+    - Assigned community zone information.
+  - Development fallback logging to terminal when SMTP is not configured.
+- [x] **Default Alert Notification Opt-In:**
+  - Enforced `alertsEnabled = true` by default for all registered residents and officers.
+- [x] **Audit Logging Engine (`src/modules/audit/`):**
+  - Append-only `AuditService` logging `USER_LOGIN_SUCCESS`, `USER_LOGIN_FAILED`, `USER_LOGOUT`, `TOKEN_REFRESH`, capturing IP, user-agent, and before/after state diffs.
+  - Admin endpoint `GET /api/v1/audit` for security log inspection.
+- [x] **PII Masking Utilities:** Automatic redaction of passwords and masking of phone numbers (`+234801•••5678`) in audit logs and API responses.
 
-### Day 4: Geospatial Engine & User Management (Zone & GPS Registration)
-- [ ] **Geospatial Service (`GeoService`) & Dual-Pillar Recipient Selection:**
-  - Implement Haversine formula calculation with strict bounding-box prefilter on indexed coordinates.
-  - **Pillar 1 (Physical Geofence):** Query eligible recipients within incident's `alertRadiusMeters`.
-  - **Pillar 2 (Zone Community Membership):** Query all active, alert-enabled residents registered to the incident's home community (`user.zoneId === incident.zoneId`), ensuring residents who are temporarily away at work or travel still receive alerts to warn their families.
-  - Strict deduplication by normalized E.164 phone number.
+### Day 4: Geospatial Engine & User Management (Zone & GPS Registration) (Completed)
+- [x] **Geospatial Service (`GeoService`) & Dual-Pillar Recipient Selection:**
+  - Haversine formula calculation with strict bounding-box prefilter on indexed coordinates.
+  - **Pillar 1 (Physical Geofence):** Queries eligible recipients within incident's `alertRadiusMeters`.
+  - **Pillar 2 (Zone Community Membership):** Queries all active, alert-enabled residents registered to the incident's home community (`user.zoneId === incident.zoneId`), ensuring residents who are temporarily away at work or travel still receive alerts to warn their families.
+  - Strict deduplication by user ID / normalized E.164 phone number.
   - Stale location detection (`locationUpdatedAt > 90 days`).
   - Cap protection check (`MAX_RECIPIENTS_PER_INCIDENT = 2000`) requiring `confirmLargeBlast`.
-- [ ] **Phone Normalization (`phone.util.ts`):**
-  - Implement normalization via `libphonenumber-js` default region `NG`.
-  - Accept `0801...`, `+234...`, `234...`; validate carrier prefixes (MTN, Airtel, Glo, 9mobile); format to strict E.164.
-- [ ] **Coordinate Validation & Sanity:**
-  - Strict range checks (lat ∈ [-90, 90], lng ∈ [-180, 180], reject NaN, `0,0`).
+- [x] **Phone Normalization & Carrier Detection (`phone.util.ts`):**
+  - Implemented normalization via `libphonenumber-js` default region `NG`.
+  - Accepts `0801...`, `+234...`, `234...`; identifies carrier networks (MTN, Airtel, Glo, 9mobile); formats to strict E.164.
+- [x] **Coordinate Validation & Sanity (`coordinate.util.ts`):**
+  - Strict range checks (lat ∈ [-90, 90], lng ∈ [-180, 180], reject NaN, `0,0` Null Island).
   - Soft-warn for coordinates outside Nigeria's bounding box (~lat 4–14, lng 2.5–15).
   - Inverted coordinate detection (swapped lat/lng helper).
-- [ ] **User Management & Flexible Registration (GPS + Zone/Address):**
+- [x] **Zone Management (`ZonesService` & `ZonesController`):**
+  - `GET /zones` with active membership counts.
+  - `GET /zones/:id` zone detail.
+  - `POST /zones` and `PATCH /zones/:id` (Admin only) with audit trail logging.
+- [x] **User Management & Flexible Registration (GPS + Zone/Address):**
   - Registration endpoint (`POST /users`) supporting two modes:
     1. **Zone-Based Registration:** Assign home `zoneId`, `houseNumber` (compound/house identifier), and `areaDescription` (street/landmark) without requiring GPS coordinates.
     2. **GPS-Enhanced Registration:** Capture client GPS coordinates or map pin in addition to community zone and address.
-  - Admin/Security user management with soft-delete (`isActive = false`).
-  - Bulk CSV import supporting rows with or without GPS coordinates (validating phone, language, zone, house number, area).
+  - Welcome credentials dispatch with temporary password, email/phone identifier, and website portal link (`${FRONTEND_URL}/login`).
+  - Defaults `alertsEnabled: true` for emergency notifications.
+  - Paginated user directory with search and role/zone filters (`GET /users`).
+  - Soft-delete (`DELETE /users/:id`, sets `isActive = false`).
+  - Bulk CSV/JSON import (`POST /users/bulk-import`) supporting rows with or without GPS coordinates, generating credentials, and reporting row-by-row outcomes.
 
-### Day 5: Incident Lifecycle, State Machine & Verification
-- [ ] **Incident State Machine:**
-  - Implement strict transition map: `PENDING_REVIEW` → `VERIFIED` → `ALERTING` → `ALERTS_SENT` / `ALERTS_PARTIALLY_FAILED` → `RESOLVED`; `PENDING_REVIEW` → `DISMISSED`.
-  - Atomic race-safe transitions using SQL conditional updates (`WHERE id = ? AND status = ?`) and `version` increment.
-  - Throw `409 Conflict` on illegal or lost race transitions.
-- [ ] **Verification Policies & Four-Eyes Principle:**
-  - Require `SECURITY` or `ADMIN` role.
-  - Enforce `ALLOW_SELF_VERIFY = false`: block reporter from verifying their own incident unless Admin override is provided.
+### Day 5: Incident Lifecycle, State Machine & Verification (Completed)
+- [x] **Incident State Machine:**
+  - Implemented strict transition map: `PENDING_REVIEW` → `VERIFIED` → `ALERTING` → `ALERTS_SENT` / `ALERTS_PARTIALLY_FAILED` → `RESOLVED`; `PENDING_REVIEW` → `DISMISSED`.
+  - Atomic race-safe transitions using SQL conditional updates (`WHERE id = ? AND status = ? AND version = ?`) and `version` increment.
+  - Throws `409 Conflict` on illegal or concurrent race transitions.
+- [x] **Verification Policies & Four-Eyes Principle:**
+  - Requires `SECURITY` or `ADMIN` role.
+  - Enforced `ALLOW_SELF_VERIFY = false`: blocks reporting officer from verifying their own incident unless an Admin override is explicitly supplied.
   - Mandatory dismissal reason (5–500 characters).
-- [ ] **Duplicate Incident Detection:**
-  - Query for open incidents within 500m and last 30 minutes.
-  - Require explicit `acknowledgeDuplicates = true` flag to proceed.
-- [ ] **Incident Endpoints:**
-  - `POST /incidents` (initializes `PENDING_REVIEW`, never auto-alerts).
-  - `GET /incidents` (cursor pagination, filters by status/severity/type/zone, sorted newest first).
-  - `GET /incidents/:id` (detail with alert stats).
-  - `GET /incidents/:id/preview-recipients` (dry-run fanout preview with language & role breakdown).
-  - `POST /incidents/:id/verify` (requires `Idempotency-Key`).
-  - `POST /incidents/:id/dismiss` (requires reason).
-  - `POST /incidents/:id/resolve` (optional `sendAllClear`).
-- [ ] **Auto-Expiry Cron:** Scheduled task expiring `PENDING_REVIEW` incidents older than configured window (default 60m) to `DISMISSED` with reason `AUTO_EXPIRED`.
-- [ ] **Idempotency Engine:** Middleware enforcing `Idempotency-Key` headers on mutating requests.
+- [x] **Duplicate Incident Detection:**
+  - Queries for open incidents within 500m created in the last 30 minutes.
+  - Requires explicit `acknowledgeDuplicates: true` flag in payload to proceed.
+- [x] **Sequential Incident Numbering:**
+  - Implemented atomic sequential number generator (`INC-000001`, `INC-000002`...) backed by `incident_sequences` table with `GREATEST()` max sync.
+- [x] **Incident Endpoints (`/api/v1/incidents`):**
+  - `POST /incidents`: initializes `PENDING_REVIEW`, never auto-alerts, detects duplicates.
+  - `GET /incidents`: paginated search with status, severity, type, and zone filters.
+  - `GET /incidents/:id`: full incident detail with verifier and delivery statistics.
+  - `GET /incidents/:id/preview-recipients`: dry-run fanout preview with language, role, and physical vs. zone breakdown before verifying.
+  - `POST /incidents/:id/verify`: atomic transition to `ALERTING` and bulk insertion of `Alert` rows in a single DB transaction.
+  - `POST /incidents/:id/dismiss`: requires mandatory dismissal reason (5–500 chars).
+  - `POST /incidents/:id/resolve`: optional `sendAllClear` flag.
+- [x] **Auto-Expiry Cron (`AutoExpiryService`):**
+  - Scheduled `@Cron` task running every minute, expiring stale `PENDING_REVIEW` incidents older than 60m to `DISMISSED` with reason `AUTO_EXPIRED` and audit logging.
+- [x] **Idempotency Engine (`IdempotencyService`):**
+  - Evaluates `Idempotency-Key` headers on mutating endpoints, returning cached responses (`X-Cache: HIT`) on replay.
 
 ### Day 6: SMS Service, Multilingual Templates & Encoding
 - [ ] **SMS Encoding Engine (`sms-encoding.util.ts`):**

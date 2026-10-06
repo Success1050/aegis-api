@@ -1,10 +1,13 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
+import { JwtModule } from '@nestjs/jwt';
+import { ScheduleModule } from '@nestjs/schedule';
 import { randomUUID } from 'crypto';
 import { validateEnv, configuration } from './config';
 import { PrismaModule } from './database';
-import { RequestIdMiddleware, REQUEST_ID_HEADER } from './common';
+import { RequestIdMiddleware, REQUEST_ID_HEADER, JwtAuthGuard, RolesGuard, CommonModule } from './common';
 import { HealthModule } from './modules/health/health.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -59,9 +62,12 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
       },
     }),
 
-    // Core Database & Health Modules
+    // Core Database, Common & Health Modules
     PrismaModule,
+    CommonModule,
     HealthModule,
+    ScheduleModule.forRoot(),
+    JwtModule.register({ global: true }),
 
     // Feature Modules (Aegis specification)
     AuthModule,
@@ -72,6 +78,16 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
     AlertsModule,
     AuditModule,
     DashboardModule,
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
+    },
   ],
 })
 export class AppModule implements NestModule {

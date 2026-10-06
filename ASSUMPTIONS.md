@@ -99,3 +99,31 @@ This document records all assumptions, default decisions, and architectural trad
    - **Rationale:** If a threat occurs near a resident's home compound, the resident must receive the alert to notify family members, children, or elderly relatives remaining in the compound.
    - **Deduplication:** The recipient list is strictly deduplicated by normalized E.164 phone number.
 
+---
+
+## 7. User Onboarding, Credential Dispatch & Notification Defaults
+
+1. **Automated Credential Dispatch on Registration:**  
+   - When a security officer, admin, or resident account is created, the system securely generates or accepts their password.
+   - If an email address is provided, a welcome message is dispatched containing:
+     - Their login identifier (email address and E.164 phone number)
+     - Their initial/temporary password
+     - Direct portal login link (`${FRONTEND_URL}/login`)
+     - Assigned community ward/zone
+   - In environments where SMTP credentials are not configured or in dev mode, the system safely falls back to formatted terminal output and audit logging without crashing.
+
+2. **Default Alert Notification Opt-In:**  
+   - By default, `alertsEnabled = true` for every newly registered resident and security official.
+   - Residents remain subscribed to early-warning emergency broadcasts by default, with opt-out supported via preference settings or NCC DND guidelines.
+
+3. **Dual Login Identifiers:**  
+   - The authentication service natively accepts either an **E.164 / local Nigerian phone number** (`+23480...` or `080...`) OR an **email address** (`user@example.com`).
+
+4. **HttpOnly Cookie & Dual-Delivery Authentication:**  
+   - To provide the highest standard of web application security (immunity against XSS token exfiltration) while preserving compatibility with mobile apps and CLI consumers:
+     - On `/auth/login` and `/auth/refresh`, the server automatically sets `accessToken` (15m expiry) and `refreshToken` (7d expiry) as **`HttpOnly`, `SameSite=Lax` cookies** (with `Secure: true` in production) via `res.cookie()`.
+     - The server also returns the tokens in the JSON response body for native mobile clients.
+     - `JwtAuthGuard` checks the `HttpOnly` cookie first, falling back gracefully to the `Authorization: Bearer <token>` header.
+     - On `/auth/logout`, the server clears both cookies and revokes the active refresh session in the backend.
+
+

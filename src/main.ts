@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter, REQUEST_ID_HEADER } from './common';
 
@@ -17,6 +18,9 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('port', 4000);
   const corsOrigins = configService.get<string[]>('corsOrigins', ['http://localhost:3000']);
+
+  // Mount Cookie Parser for HttpOnly authentication tokens
+  app.use(cookieParser());
 
   // Security Headers via Helmet
   app.use(
