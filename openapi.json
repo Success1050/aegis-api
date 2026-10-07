@@ -1,0 +1,2929 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "description": "Returns system metadata and documentation URLs.",
+        "operationId": "HealthController_getRoot",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "System metadata"
+          }
+        },
+        "summary": "System index",
+        "tags": [
+          "System & Health"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Returns 200 if the process is running.",
+        "operationId": "HealthController_getHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Service is alive"
+          }
+        },
+        "summary": "Liveness probe",
+        "tags": [
+          "System & Health"
+        ]
+      }
+    },
+    "/ready": {
+      "get": {
+        "description": "Checks database and Redis dependencies. Returns 200 if ready, 503 if not.",
+        "operationId": "HealthController_getReady",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Dependencies are healthy"
+          },
+          "503": {
+            "description": "One or more critical dependencies are down"
+          }
+        },
+        "summary": "Readiness probe",
+        "tags": [
+          "System & Health"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "description": "Authenticates user with phone or email identifier and password. Returns tokens in JSON and automatically sets secure HttpOnly cookies for web browsers.",
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid login credentials"
+          },
+          "429": {
+            "description": "Too many failed login attempts - account locked"
+          }
+        },
+        "summary": "User Login",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "description": "Rotates the refresh token (read from JSON body or HttpOnly cookie) and returns a new access + refresh token pair.",
+        "operationId": "AuthController_refreshTokens",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens successfully refreshed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired refresh token"
+          }
+        },
+        "summary": "Rotate Refresh Token",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "description": "Revokes active refresh session and clears HttpOnly authentication cookies.",
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged out successfully"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "User Logout",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "description": "Returns profile details and role-based dashboard destination for the current bearer token or cookie.",
+        "operationId": "AuthController_getMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Current profile & dashboard routing"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get Current Authenticated Profile",
+        "tags": [
+          "Authentication"
+        ]
+      }
+    },
+    "/users": {
+      "post": {
+        "description": "Supports Zone-based and GPS-enhanced registration. Automatically hashes credentials, sets alerts enabled by default, and dispatches login details with portal link.",
+        "operationId": "UsersController_createUser",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "409": {
+            "description": "Phone or email already registered"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Register a new community resident or security officer",
+        "tags": [
+          "Users"
+        ]
+      },
+      "get": {
+        "operationId": "UsersController_listUsers",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 20,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search by name, phone, email, house, or area",
+            "schema": {
+              "example": "Danladi",
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "description": "Filter by user role",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "RESIDENT",
+                "SECURITY",
+                "ADMIN"
+              ]
+            }
+          },
+          {
+            "name": "zoneId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by home community zone ID",
+            "schema": {
+              "example": "a0000000-0000-0000-0000-000000000001",
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "description": "Filter by active status",
+            "schema": {
+              "example": true,
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "alertsEnabled",
+            "required": false,
+            "in": "query",
+            "description": "Filter by alerts enabled status",
+            "schema": {
+              "example": true,
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedUserResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Paginated user directory search with role and zone filters",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "operationId": "UsersController_getUserById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get user details by ID",
+        "tags": [
+          "Users"
+        ]
+      },
+      "patch": {
+        "operationId": "UsersController_updateUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Update user profile, coordinates, language or address",
+        "tags": [
+          "Users"
+        ]
+      },
+      "delete": {
+        "operationId": "UsersController_deactivateUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User deactivated"
+          },
+          "404": {
+            "description": "User not found"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Soft-deactivate user account (Admin only)",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/bulk-import": {
+      "post": {
+        "description": "Batch registers community members with support for zone/house numbers and optional GPS, dispatches credentials, and returns per-row processing outcomes.",
+        "operationId": "UsersController_bulkImport",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkImportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkImportResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Bulk onboard community residents (CSV / JSON)",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/audit": {
+      "get": {
+        "description": "Retrieve chronological append-only audit trail of sensitive system actions with state diffs.",
+        "operationId": "AuditController_getAuditLogs",
+        "parameters": [
+          {
+            "name": "entityType",
+            "required": false,
+            "in": "query",
+            "description": "Filter by entity type (INCIDENT, USER, ZONE)",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entityId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by specific entity ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by acting user ID",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "action",
+            "required": false,
+            "in": "query",
+            "description": "Filter by action name",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of logs to retrieve",
+            "schema": {
+              "default": 20,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "offset",
+            "required": false,
+            "in": "query",
+            "description": "Number of logs to skip",
+            "schema": {
+              "default": 0,
+              "example": 0,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated audit logs"
+          },
+          "403": {
+            "description": "Forbidden - requires ADMIN role"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "View Audit Logs (Admin only)",
+        "tags": [
+          "Audit Logs"
+        ]
+      }
+    },
+    "/zones": {
+      "get": {
+        "operationId": "ZonesController_listZones",
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ZoneResponseDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "List all community zones with membership counts",
+        "tags": [
+          "Zones"
+        ]
+      },
+      "post": {
+        "operationId": "ZonesController_createZone",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateZoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Create a new community zone (Admin only)",
+        "tags": [
+          "Zones"
+        ]
+      }
+    },
+    "/zones/{id}": {
+      "get": {
+        "operationId": "ZonesController_getZoneById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Zone not found"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get zone details by ID",
+        "tags": [
+          "Zones"
+        ]
+      },
+      "patch": {
+        "operationId": "ZonesController_updateZone",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateZoneDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ZoneResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Zone not found"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Update community zone details (Admin only)",
+        "tags": [
+          "Zones"
+        ]
+      }
+    },
+    "/incidents": {
+      "post": {
+        "description": "Initializes an incident in PENDING_REVIEW status. Never auto-alerts. Checks for duplicate incidents within 500m in the last 30 minutes.",
+        "operationId": "IncidentsController_createIncident",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateIncidentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Possible duplicate incident detected"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Report a new incident",
+        "tags": [
+          "Incidents"
+        ]
+      },
+      "get": {
+        "operationId": "IncidentsController_listIncidents",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 20,
+              "example": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter by incident status",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING_REVIEW",
+                "VERIFIED",
+                "ALERTING",
+                "ALERTS_SENT",
+                "ALERTS_PARTIALLY_FAILED",
+                "DISMISSED",
+                "RESOLVED"
+              ]
+            }
+          },
+          {
+            "name": "severity",
+            "required": false,
+            "in": "query",
+            "description": "Filter by severity",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LOW",
+                "MEDIUM",
+                "HIGH",
+                "CRITICAL"
+              ]
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Filter by incident type",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "POSSIBLE_INTRUSION",
+                "SUSPICIOUS_PERSON",
+                "SUSPICIOUS_VEHICLE",
+                "FIRE",
+                "OTHER"
+              ]
+            }
+          },
+          {
+            "name": "zoneId",
+            "required": false,
+            "in": "query",
+            "description": "Filter by zone ID",
+            "schema": {
+              "example": "a0000000-0000-0000-0000-000000000001",
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Search query for description or incident number",
+            "schema": {
+              "example": "perimeter",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedIncidentResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Paginated list of incidents with status and severity filters",
+        "tags": [
+          "Incidents"
+        ]
+      }
+    },
+    "/incidents/{id}": {
+      "get": {
+        "operationId": "IncidentsController_getIncidentById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Incident not found"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get incident details with verifier and delivery stats",
+        "tags": [
+          "Incidents"
+        ]
+      }
+    },
+    "/incidents/{id}/preview-recipients": {
+      "get": {
+        "description": "Calculates recipient count and breakdown by language, role, and physical vs. zone match before triggering an alert broadcast.",
+        "operationId": "IncidentsController_previewRecipients",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecipientPreviewResponseDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Incident not found"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Dry-run recipient preview before verification",
+        "tags": [
+          "Incidents"
+        ]
+      }
+    },
+    "/incidents/{id}/verify": {
+      "post": {
+        "description": "Enforces Four-Eyes principle (reporter cannot verify unless Admin override), transitions atomically to ALERTING, and enqueues alert rows in a single DB transaction.",
+        "operationId": "IncidentsController_verifyIncident",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Unique client idempotency token to prevent double-verification",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyIncidentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Incident verified and alerting initiated"
+          },
+          "403": {
+            "description": "Four-Eyes Principle violation"
+          },
+          "409": {
+            "description": "State conflict or incident expired"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Verify incident and trigger alert fanout",
+        "tags": [
+          "Incidents"
+        ]
+      }
+    },
+    "/incidents/{id}/dismiss": {
+      "post": {
+        "description": "Permanently dismisses a pending report. A dismissed incident can never be verified.",
+        "operationId": "IncidentsController_dismissIncident",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DismissIncidentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incident already processed"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Dismiss incident with mandatory reason",
+        "tags": [
+          "Incidents"
+        ]
+      }
+    },
+    "/incidents/{id}/resolve": {
+      "post": {
+        "description": "Sets incident to RESOLVED status. Optionally broadcasts an ALL_CLEAR notice to recipients.",
+        "operationId": "IncidentsController_resolveIncident",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResolveIncidentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentResponseDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Incident cannot be resolved from current state"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Resolve incident",
+        "tags": [
+          "Incidents"
+        ]
+      }
+    },
+    "/alerts/preview-template": {
+      "post": {
+        "operationId": "AlertsController_previewTemplate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreviewTemplateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rendered template and encoding analysis"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Preview an alert template rendered in a target language with GSM-7 segment analysis",
+        "tags": [
+          "Alerts"
+        ]
+      }
+    },
+    "/incidents/{id}/alerts": {
+      "get": {
+        "operationId": "AlertsController_getAlertsByIncident",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Incident UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of alerts dispatched for incident"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Retrieve all alerts created for an incident",
+        "tags": [
+          "Alerts"
+        ]
+      }
+    },
+    "/incidents/{id}/alerts/stats": {
+      "get": {
+        "operationId": "AlertsController_getAlertsStats",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Incident UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Aggregated alert delivery statistics"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Retrieve aggregated delivery statistics for an incident",
+        "tags": [
+          "Alerts"
+        ]
+      }
+    },
+    "/incidents/{id}/alerts/retry-failed": {
+      "post": {
+        "operationId": "AlertsController_retryFailedAlerts",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "description": "Incident UUID",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Failed alerts reset to QUEUED and re-enqueued"
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Manually trigger re-dispatch for failed alerts of an incident",
+        "tags": [
+          "Alerts"
+        ]
+      }
+    },
+    "/alerts/queue/stats": {
+      "get": {
+        "operationId": "AlertsController_getQueueStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Inspect BullMQ / In-Memory alert queue status and metrics",
+        "tags": [
+          "Alerts"
+        ]
+      }
+    },
+    "/alerts/queue/pause": {
+      "post": {
+        "operationId": "AlertsController_pauseQueue",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Emergency pause on alert dispatch queue",
+        "tags": [
+          "Alerts"
+        ]
+      }
+    },
+    "/alerts/queue/resume": {
+      "post": {
+        "operationId": "AlertsController_resumeQueue",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Resume alert dispatch queue",
+        "tags": [
+          "Alerts"
+        ]
+      }
+    },
+    "/alerts/circuit-breaker": {
+      "get": {
+        "operationId": "AlertsController_getCircuitBreakerStatus",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Get current circuit breaker status for SMS providers",
+        "tags": [
+          "Alerts"
+        ]
+      }
+    },
+    "/alerts/circuit-breaker/reset": {
+      "post": {
+        "operationId": "AlertsController_resetCircuitBreaker",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Manually reset circuit breaker",
+        "tags": [
+          "Alerts"
+        ]
+      }
+    },
+    "/webhooks/sms-delivery": {
+      "post": {
+        "description": "Processes asynchronous delivery status updates (DELIVERED / FAILED) with HMAC-SHA256 signature verification and replay protection.",
+        "operationId": "NotificationsController_handleSmsDeliveryWebhook",
+        "parameters": [
+          {
+            "name": "x-signature",
+            "required": false,
+            "in": "header",
+            "description": "HMAC-SHA256 hex signature of request payload",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-termii-signature",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-aegis-signature",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "x-timestamp",
+            "required": false,
+            "in": "header",
+            "description": "Epoch millisecond timestamp of webhook dispatch for replay protection",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SmsDeliveryWebhookDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Delivery receipt processed idempotently"
+          }
+        },
+        "summary": "Receive SMS delivery receipt from telecom gateway / aggregator (Termii, Fake)",
+        "tags": [
+          "Webhooks"
+        ]
+      }
+    },
+    "/dashboard/admin": {
+      "get": {
+        "description": "Returns system-wide user counts, zone stats, alert blast totals, and platform health.",
+        "operationId": "DashboardController_getAdminDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminDashboardStatsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "System Administrator Dashboard",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/security": {
+      "get": {
+        "description": "Returns tactical incident queue status, pending verification counters, and active alert progress.",
+        "operationId": "DashboardController_getSecurityDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecurityDashboardStatsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Security Operations Command Dashboard",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/resident": {
+      "get": {
+        "description": "Returns resident zone status, recent localized alerts, and notification preferences.",
+        "operationId": "DashboardController_getResidentDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResidentDashboardStatsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Community Resident Safety Portal",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    },
+    "/dashboard/summary": {
+      "get": {
+        "description": "Automatically detects authenticated user role and routes to the appropriate dashboard data.",
+        "operationId": "DashboardController_getDashboardSummary",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT-auth": []
+          }
+        ],
+        "summary": "Adaptive Role-Based Dashboard Dispatcher",
+        "tags": [
+          "Dashboard"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "AEGIS Early-Warning System API",
+    "description": "Community early-warning system alert delivery engine and manual incident management API for Nigerian communities.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "JWT-auth": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http",
+        "name": "Authorization",
+        "description": "Enter your Bearer access token",
+        "in": "header"
+      },
+      "Idempotency-Key": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "Idempotency-Key",
+        "description": "Idempotency key for mutating requests"
+      }
+    },
+    "schemas": {
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "identifier": {
+            "type": "string",
+            "example": "+2348000000001",
+            "description": "Login identifier: Nigerian phone number (+234... / 080...) OR registered email address"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+2348000000001",
+            "description": "Nigerian phone number in E.164 (+234...) or local format (080...)"
+          },
+          "email": {
+            "type": "string",
+            "example": "admin@aegis.ng",
+            "description": "Registered account email address"
+          },
+          "password": {
+            "type": "string",
+            "example": "AdminSecure2026!",
+            "description": "User account password"
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "UserProfileDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "a0000000-0000-0000-0000-000000000001",
+            "description": "User ID"
+          },
+          "name": {
+            "type": "string",
+            "example": "Super Admin Emmanuel",
+            "description": "User full name"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+2348000000001",
+            "description": "E.164 phone number"
+          },
+          "role": {
+            "type": "string",
+            "example": "ADMIN",
+            "enum": [
+              "ADMIN",
+              "SECURITY",
+              "RESIDENT"
+            ],
+            "description": "User role"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "example": "ENGLISH",
+            "description": "Preferred language"
+          },
+          "zoneId": {
+            "type": "object",
+            "example": "a0000000-0000-0000-0000-000000000001",
+            "description": "Assigned community zone ID"
+          },
+          "zoneName": {
+            "type": "object",
+            "example": "Community A (North Ward)",
+            "description": "Community zone name"
+          },
+          "email": {
+            "type": "object",
+            "example": "admin@aegis.ng",
+            "description": "Registered email address"
+          },
+          "houseNumber": {
+            "type": "object",
+            "example": "House 14B",
+            "description": "House or compound number"
+          },
+          "areaDescription": {
+            "type": "object",
+            "example": "Angwan Rimi Close",
+            "description": "Area description or street landmark"
+          },
+          "alertsEnabled": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether alerts are enabled"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "phone",
+          "role",
+          "preferredLanguage",
+          "alertsEnabled"
+        ]
+      },
+      "DashboardRoutingDto": {
+        "type": "object",
+        "properties": {
+          "route": {
+            "type": "string",
+            "example": "/admin",
+            "description": "Destination route for user role dashboard"
+          },
+          "roleTitle": {
+            "type": "string",
+            "example": "System Administrator",
+            "description": "Human-readable role title"
+          },
+          "allowedSections": {
+            "example": [
+              "incidents",
+              "verify",
+              "users",
+              "zones",
+              "audit"
+            ],
+            "description": "Permitted application functional sections",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "route",
+          "roleTitle",
+          "allowedSections"
+        ]
+      },
+      "AuthResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Short-lived JWT access token (15m)"
+          },
+          "refreshToken": {
+            "type": "string",
+            "description": "Rotating JWT refresh token (7d)"
+          },
+          "user": {
+            "description": "Authenticated user profile",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserProfileDto"
+              }
+            ]
+          },
+          "dashboard": {
+            "description": "Role-based dashboard destination",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DashboardRoutingDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "accessToken",
+          "refreshToken",
+          "user",
+          "dashboard"
+        ]
+      },
+      "RefreshTokenDto": {
+        "type": "object",
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "Rotating refresh token (can also be provided automatically via HttpOnly cookie)"
+          }
+        }
+      },
+      "CreateUserDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ibrahim Danladi",
+            "description": "User full name"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+2348031234567",
+            "description": "Nigerian phone number (e.g., +234..., 080...)"
+          },
+          "email": {
+            "type": "string",
+            "example": "ibrahim.danladi@aegis.ng",
+            "description": "Email address for login & credentials dispatch"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "RESIDENT",
+              "SECURITY",
+              "ADMIN"
+            ],
+            "default": "RESIDENT",
+            "description": "User access role: RESIDENT, SECURITY, or ADMIN"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "enum": [
+              "ENGLISH",
+              "HAUSA",
+              "IGBO",
+              "YORUBA",
+              "PIDGIN"
+            ],
+            "default": "ENGLISH",
+            "description": "Preferred alert language: ENGLISH, HAUSA, IGBO, YORUBA, PIDGIN"
+          },
+          "zoneId": {
+            "type": "string",
+            "example": "a0000000-0000-0000-0000-000000000001",
+            "description": "Home community zone ID (Zone-based membership)"
+          },
+          "houseNumber": {
+            "type": "string",
+            "example": "Plot 14B",
+            "description": "House or compound number identifier"
+          },
+          "areaDescription": {
+            "type": "string",
+            "example": "Angwan Rimi Close, Near Central Mosque",
+            "description": "Area description, street name, or local landmark"
+          },
+          "latitude": {
+            "type": "number",
+            "example": 9.8965,
+            "description": "GPS latitude coordinate (GPS-enhanced mode)"
+          },
+          "longitude": {
+            "type": "number",
+            "example": 8.8583,
+            "description": "GPS longitude coordinate (GPS-enhanced mode)"
+          },
+          "alertsEnabled": {
+            "type": "boolean",
+            "example": true,
+            "default": true,
+            "description": "Whether emergency alert notifications are active (defaults to true)"
+          },
+          "password": {
+            "type": "string",
+            "example": "SecurePass2026!",
+            "description": "Custom password. If omitted, a secure random password will be auto-generated and emailed"
+          }
+        },
+        "required": [
+          "name",
+          "phone"
+        ]
+      },
+      "UserResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "a0000000-0000-0000-0000-000000000001"
+          },
+          "name": {
+            "type": "string",
+            "example": "John Danladi"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+2348030000001"
+          },
+          "email": {
+            "type": "object",
+            "example": "john.danladi@aegis.ng"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "RESIDENT",
+              "SECURITY",
+              "ADMIN"
+            ],
+            "example": "RESIDENT"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "enum": [
+              "ENGLISH",
+              "HAUSA",
+              "IGBO",
+              "YORUBA",
+              "PIDGIN"
+            ],
+            "example": "HAUSA"
+          },
+          "zoneId": {
+            "type": "object",
+            "example": "a0000000-0000-0000-0000-000000000001"
+          },
+          "zoneName": {
+            "type": "object",
+            "example": "Community A (North Ward)"
+          },
+          "houseNumber": {
+            "type": "object",
+            "example": "Plot 14B"
+          },
+          "areaDescription": {
+            "type": "object",
+            "example": "Angwan Rimi Close"
+          },
+          "latitude": {
+            "type": "object",
+            "example": 9.8965
+          },
+          "longitude": {
+            "type": "object",
+            "example": 8.8583
+          },
+          "locationUpdatedAt": {
+            "type": "object",
+            "example": "2026-10-06T12:00:00.000Z"
+          },
+          "alertsEnabled": {
+            "type": "boolean",
+            "example": true
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-06T12:00:00.000Z"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-06T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "phone",
+          "role",
+          "preferredLanguage",
+          "alertsEnabled",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PaginationMetaDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "example": 45
+          },
+          "page": {
+            "type": "number",
+            "example": 1
+          },
+          "limit": {
+            "type": "number",
+            "example": 20
+          },
+          "totalPages": {
+            "type": "number",
+            "example": 3
+          }
+        },
+        "required": [
+          "total",
+          "page",
+          "limit",
+          "totalPages"
+        ]
+      },
+      "PaginatedUserResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserResponseDto"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/PaginationMetaDto"
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ibrahim Danladi",
+            "description": "User full name"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+2348031234567",
+            "description": "Nigerian phone number (e.g., +234..., 080...)"
+          },
+          "email": {
+            "type": "string",
+            "example": "ibrahim.danladi@aegis.ng",
+            "description": "Email address for login & credentials dispatch"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "RESIDENT",
+              "SECURITY",
+              "ADMIN"
+            ],
+            "default": "RESIDENT",
+            "description": "User access role: RESIDENT, SECURITY, or ADMIN"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "enum": [
+              "ENGLISH",
+              "HAUSA",
+              "IGBO",
+              "YORUBA",
+              "PIDGIN"
+            ],
+            "default": "ENGLISH",
+            "description": "Preferred alert language: ENGLISH, HAUSA, IGBO, YORUBA, PIDGIN"
+          },
+          "zoneId": {
+            "type": "string",
+            "example": "a0000000-0000-0000-0000-000000000001",
+            "description": "Home community zone ID (Zone-based membership)"
+          },
+          "houseNumber": {
+            "type": "string",
+            "example": "Plot 14B",
+            "description": "House or compound number identifier"
+          },
+          "areaDescription": {
+            "type": "string",
+            "example": "Angwan Rimi Close, Near Central Mosque",
+            "description": "Area description, street name, or local landmark"
+          },
+          "latitude": {
+            "type": "number",
+            "example": 9.8965,
+            "description": "GPS latitude coordinate (GPS-enhanced mode)"
+          },
+          "longitude": {
+            "type": "number",
+            "example": 8.8583,
+            "description": "GPS longitude coordinate (GPS-enhanced mode)"
+          },
+          "alertsEnabled": {
+            "type": "boolean",
+            "example": true,
+            "default": true,
+            "description": "Whether emergency alert notifications are active (defaults to true)"
+          },
+          "password": {
+            "type": "string",
+            "example": "SecurePass2026!",
+            "description": "Custom password. If omitted, a secure random password will be auto-generated and emailed"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "Active status for soft deactivation / reactivation"
+          }
+        }
+      },
+      "BulkImportResidentRow": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Sani Bello"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+2348039876543"
+          },
+          "email": {
+            "type": "string",
+            "example": "sani.bello@aegis.ng"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "enum": [
+              "ENGLISH",
+              "HAUSA",
+              "IGBO",
+              "YORUBA",
+              "PIDGIN"
+            ],
+            "default": "ENGLISH"
+          },
+          "zoneId": {
+            "type": "string",
+            "example": "a0000000-0000-0000-0000-000000000001"
+          },
+          "houseNumber": {
+            "type": "string",
+            "example": "House 12"
+          },
+          "areaDescription": {
+            "type": "string",
+            "example": "Old Airport Road"
+          },
+          "latitude": {
+            "type": "number",
+            "example": 9.897
+          },
+          "longitude": {
+            "type": "number",
+            "example": 8.855
+          }
+        },
+        "required": [
+          "name",
+          "phone"
+        ]
+      },
+      "BulkImportDto": {
+        "type": "object",
+        "properties": {
+          "residents": {
+            "description": "List of resident records to onboard",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkImportResidentRow"
+            }
+          }
+        },
+        "required": [
+          "residents"
+        ]
+      },
+      "BulkImportErrorDetail": {
+        "type": "object",
+        "properties": {
+          "row": {
+            "type": "number",
+            "example": 2
+          },
+          "phone": {
+            "type": "string",
+            "example": "+2348039876543"
+          },
+          "error": {
+            "type": "string",
+            "example": "Phone number already registered"
+          }
+        },
+        "required": [
+          "row",
+          "error"
+        ]
+      },
+      "BulkImportResponseDto": {
+        "type": "object",
+        "properties": {
+          "totalProcessed": {
+            "type": "number",
+            "example": 10
+          },
+          "successCount": {
+            "type": "number",
+            "example": 9
+          },
+          "failedCount": {
+            "type": "number",
+            "example": 1
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkImportErrorDetail"
+            }
+          }
+        },
+        "required": [
+          "totalProcessed",
+          "successCount",
+          "failedCount",
+          "errors"
+        ]
+      },
+      "ZoneResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "a0000000-0000-0000-0000-000000000001"
+          },
+          "name": {
+            "type": "string",
+            "example": "Community A (North Ward)"
+          },
+          "centerLat": {
+            "type": "number",
+            "example": 9.898
+          },
+          "centerLng": {
+            "type": "number",
+            "example": 8.857
+          },
+          "radiusMeters": {
+            "type": "number",
+            "example": 2000
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true
+          },
+          "memberCount": {
+            "type": "number",
+            "example": 45,
+            "description": "Number of registered community residents"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-06T12:00:00.000Z"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-06T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "centerLat",
+          "centerLng",
+          "radiusMeters",
+          "isActive",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "CreateZoneDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Community A (North Ward)",
+            "description": "Community zone name"
+          },
+          "centerLat": {
+            "type": "number",
+            "example": 9.898,
+            "description": "Center latitude coordinate"
+          },
+          "centerLng": {
+            "type": "number",
+            "example": 8.857,
+            "description": "Center longitude coordinate"
+          },
+          "radiusMeters": {
+            "type": "number",
+            "example": 2000,
+            "description": "Default radius in meters (default 2000m)"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the zone is active"
+          }
+        },
+        "required": [
+          "name",
+          "centerLat",
+          "centerLng"
+        ]
+      },
+      "UpdateZoneDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Community A (North Ward)",
+            "description": "Community zone name"
+          },
+          "centerLat": {
+            "type": "number",
+            "example": 9.898,
+            "description": "Center latitude coordinate"
+          },
+          "centerLng": {
+            "type": "number",
+            "example": 8.857,
+            "description": "Center longitude coordinate"
+          },
+          "radiusMeters": {
+            "type": "number",
+            "example": 2000,
+            "description": "Default radius in meters (default 2000m)"
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether the zone is active"
+          }
+        }
+      },
+      "CreateIncidentDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "POSSIBLE_INTRUSION",
+              "SUSPICIOUS_PERSON",
+              "SUSPICIOUS_VEHICLE",
+              "FIRE",
+              "OTHER"
+            ],
+            "example": "POSSIBLE_INTRUSION",
+            "description": "Type of security or emergency incident"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ],
+            "example": "HIGH",
+            "description": "Severity level: LOW, MEDIUM, HIGH, CRITICAL"
+          },
+          "description": {
+            "type": "string",
+            "example": "Multiple individuals spotted attempting to breach northern community perimeter gate.",
+            "description": "Detailed description of the incident"
+          },
+          "latitude": {
+            "type": "number",
+            "example": 9.898,
+            "description": "Incident latitude coordinate (derived from zone if omitted)"
+          },
+          "longitude": {
+            "type": "number",
+            "example": 8.857,
+            "description": "Incident longitude coordinate (derived from zone if omitted)"
+          },
+          "zoneId": {
+            "type": "string",
+            "example": "a0000000-0000-0000-0000-000000000001",
+            "description": "Associated community zone ID"
+          },
+          "alertRadiusMeters": {
+            "type": "number",
+            "example": 2000,
+            "description": "Alert blast radius in meters (snapshotted at creation; default: 2000m)"
+          },
+          "acknowledgeDuplicates": {
+            "type": "boolean",
+            "example": false,
+            "default": false,
+            "description": "Explicit acknowledgment if a duplicate incident was detected within 500m in the last 30m"
+          }
+        },
+        "required": [
+          "type",
+          "severity",
+          "description"
+        ]
+      },
+      "IncidentAlertStatsDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "example": 42
+          },
+          "sent": {
+            "type": "number",
+            "example": 40
+          },
+          "delivered": {
+            "type": "number",
+            "example": 38
+          },
+          "failed": {
+            "type": "number",
+            "example": 2
+          }
+        },
+        "required": [
+          "total",
+          "sent",
+          "delivered",
+          "failed"
+        ]
+      },
+      "IncidentResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "b0000000-0000-0000-0000-000000000001"
+          },
+          "number": {
+            "type": "string",
+            "example": "INC-000001"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "POSSIBLE_INTRUSION",
+              "SUSPICIOUS_PERSON",
+              "SUSPICIOUS_VEHICLE",
+              "FIRE",
+              "OTHER"
+            ],
+            "example": "POSSIBLE_INTRUSION"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "MANUAL"
+            ],
+            "example": "MANUAL"
+          },
+          "latitude": {
+            "type": "number",
+            "example": 9.898
+          },
+          "longitude": {
+            "type": "number",
+            "example": 8.857
+          },
+          "zoneId": {
+            "type": "object",
+            "example": "a0000000-0000-0000-0000-000000000001"
+          },
+          "zoneName": {
+            "type": "object",
+            "example": "Community A (North Ward)"
+          },
+          "description": {
+            "type": "string",
+            "example": "Perimeter movement reported near northern gate."
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "CRITICAL"
+            ],
+            "example": "HIGH"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING_REVIEW",
+              "VERIFIED",
+              "ALERTING",
+              "ALERTS_SENT",
+              "ALERTS_PARTIALLY_FAILED",
+              "DISMISSED",
+              "RESOLVED"
+            ],
+            "example": "PENDING_REVIEW"
+          },
+          "alertRadiusMeters": {
+            "type": "number",
+            "example": 2000
+          },
+          "reportedById": {
+            "type": "string",
+            "example": "u0000000-0000-0000-0000-000000000001"
+          },
+          "reportedByName": {
+            "type": "string",
+            "example": "Officer Abubakar Garba"
+          },
+          "verifiedById": {
+            "type": "object",
+            "example": "u0000000-0000-0000-0000-000000000002"
+          },
+          "verifiedByName": {
+            "type": "object",
+            "example": "Officer Bello Musa"
+          },
+          "dismissedById": {
+            "type": "object",
+            "example": null
+          },
+          "dismissedByName": {
+            "type": "object",
+            "example": null
+          },
+          "dismissReason": {
+            "type": "object",
+            "example": null
+          },
+          "verifiedAt": {
+            "type": "object",
+            "example": null
+          },
+          "dismissedAt": {
+            "type": "object",
+            "example": null
+          },
+          "alertsCompletedAt": {
+            "type": "object",
+            "example": null
+          },
+          "version": {
+            "type": "number",
+            "example": 1
+          },
+          "alertStats": {
+            "$ref": "#/components/schemas/IncidentAlertStatsDto"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-06T12:00:00.000Z"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "type": "string",
+            "example": "2026-10-06T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "type",
+          "source",
+          "latitude",
+          "longitude",
+          "description",
+          "severity",
+          "status",
+          "alertRadiusMeters",
+          "reportedById",
+          "version",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "PaginatedIncidentResponseDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IncidentResponseDto"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "example": {
+              "total": 15,
+              "page": 1,
+              "limit": 20,
+              "totalPages": 1
+            }
+          }
+        },
+        "required": [
+          "data",
+          "meta"
+        ]
+      },
+      "RecipientPreviewBreakdownDto": {
+        "type": "object",
+        "properties": {
+          "byPhysicalRadius": {
+            "type": "number",
+            "example": 39
+          },
+          "byZoneMembership": {
+            "type": "number",
+            "example": 3
+          },
+          "overlapCount": {
+            "type": "number",
+            "example": 39
+          },
+          "byLanguage": {
+            "type": "object",
+            "example": {
+              "HAUSA": 12,
+              "YORUBA": 9,
+              "IGBO": 8,
+              "PIDGIN": 8,
+              "ENGLISH": 5
+            }
+          },
+          "byRole": {
+            "type": "object",
+            "example": {
+              "RESIDENT": 39,
+              "SECURITY": 2,
+              "ADMIN": 1
+            }
+          }
+        },
+        "required": [
+          "byPhysicalRadius",
+          "byZoneMembership",
+          "overlapCount",
+          "byLanguage",
+          "byRole"
+        ]
+      },
+      "RecipientPreviewSampleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "John Danladi"
+          },
+          "phoneMasked": {
+            "type": "string",
+            "example": "+234803•••0001"
+          },
+          "role": {
+            "type": "string",
+            "example": "RESIDENT"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "example": "HAUSA"
+          },
+          "matchReason": {
+            "type": "string",
+            "example": "BOTH",
+            "enum": [
+              "PHYSICAL_RADIUS",
+              "ZONE_MEMBERSHIP",
+              "BOTH"
+            ]
+          },
+          "distanceMeters": {
+            "type": "object",
+            "example": 397,
+            "nullable": true
+          }
+        },
+        "required": [
+          "name",
+          "phoneMasked",
+          "role",
+          "preferredLanguage",
+          "matchReason",
+          "distanceMeters"
+        ]
+      },
+      "RecipientPreviewResponseDto": {
+        "type": "object",
+        "properties": {
+          "incidentNumber": {
+            "type": "string",
+            "example": "INC-000001"
+          },
+          "alertRadiusMeters": {
+            "type": "number",
+            "example": 2000
+          },
+          "totalRecipients": {
+            "type": "number",
+            "example": 42
+          },
+          "breakdown": {
+            "$ref": "#/components/schemas/RecipientPreviewBreakdownDto"
+          },
+          "staleLocationCount": {
+            "type": "number",
+            "example": 4
+          },
+          "requiresLargeBlastConfirmation": {
+            "type": "boolean",
+            "example": false
+          },
+          "sampleRecipients": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecipientPreviewSampleDto"
+            }
+          }
+        },
+        "required": [
+          "incidentNumber",
+          "alertRadiusMeters",
+          "totalRecipients",
+          "breakdown",
+          "staleLocationCount",
+          "requiresLargeBlastConfirmation",
+          "sampleRecipients"
+        ]
+      },
+      "VerifyIncidentDto": {
+        "type": "object",
+        "properties": {
+          "confirmLargeBlast": {
+            "type": "boolean",
+            "example": false,
+            "default": false,
+            "description": "Explicit confirmation if eligible blast count exceeds safety limit (MAX_RECIPIENTS_PER_INCIDENT)"
+          },
+          "overrideSelfVerify": {
+            "type": "boolean",
+            "example": false,
+            "default": false,
+            "description": "Administrator override to bypass Four-Eyes principle if operating with a single officer"
+          }
+        }
+      },
+      "DismissIncidentDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "example": "False alarm. Community patrol verified normal activity with no perimeter threat.",
+            "description": "Mandatory reason for dismissal (min 5, max 500 characters)"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ResolveIncidentDto": {
+        "type": "object",
+        "properties": {
+          "sendAllClear": {
+            "type": "boolean",
+            "example": false,
+            "default": false,
+            "description": "Whether to dispatch an ALL_CLEAR notification broadcast to previous alert recipients"
+          },
+          "notes": {
+            "type": "string",
+            "example": "Perimeter secured by community joint patrol team. Danger has passed.",
+            "description": "Resolution summary notes"
+          }
+        }
+      },
+      "PreviewTemplateDto": {
+        "type": "object",
+        "properties": {
+          "templateType": {
+            "type": "string",
+            "description": "Alert template type",
+            "enum": [
+              "ALERT_VERIFIED_INCIDENT",
+              "ALL_CLEAR"
+            ],
+            "example": "ALERT_VERIFIED_INCIDENT"
+          },
+          "language": {
+            "type": "string",
+            "description": "Target language for localization",
+            "enum": [
+              "ENGLISH",
+              "HAUSA",
+              "IGBO",
+              "YORUBA",
+              "PIDGIN"
+            ],
+            "example": "HAUSA"
+          },
+          "incidentNumber": {
+            "type": "string",
+            "description": "Human-readable incident sequence identifier",
+            "example": "INC-000001"
+          },
+          "incidentType": {
+            "type": "string",
+            "description": "Type of emergency incident",
+            "enum": [
+              "POSSIBLE_INTRUSION",
+              "SUSPICIOUS_PERSON",
+              "SUSPICIOUS_VEHICLE",
+              "FIRE",
+              "OTHER"
+            ],
+            "example": "POSSIBLE_INTRUSION"
+          },
+          "areaName": {
+            "type": "string",
+            "description": "Human-readable community landmark or zone name (no raw GPS coordinates allowed)",
+            "example": "Maitama Zone A"
+          },
+          "allowUnreviewed": {
+            "type": "boolean",
+            "description": "Permit rendering templates pending native linguistic review",
+            "default": false
+          },
+          "preserveDiacritics": {
+            "type": "boolean",
+            "description": "Preserve Hausa hooked letters (UCS-2) or transliterate to ASCII (GSM-7)",
+            "default": false
+          }
+        },
+        "required": [
+          "templateType",
+          "language",
+          "incidentNumber",
+          "incidentType",
+          "areaName"
+        ]
+      },
+      "SmsDeliveryWebhookDto": {
+        "type": "object",
+        "properties": {
+          "message_id": {
+            "type": "string",
+            "description": "Unique provider message identifier returned during dispatch",
+            "example": "fake-msg-8f12a4c9"
+          },
+          "status": {
+            "type": "string",
+            "description": "Delivery status reported by telecom carrier or gateway",
+            "example": "DELIVERED",
+            "enum": [
+              "DELIVERED",
+              "FAILED",
+              "UNDELIVERED",
+              "REJECTED",
+              "SENT"
+            ]
+          },
+          "phone": {
+            "type": "string",
+            "description": "Destination phone number snapshot in E.164 format",
+            "example": "+2348012345678"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Failure or rejection reason if message could not be delivered",
+            "example": "Carrier DND active on subscriber number"
+          },
+          "delivered_at": {
+            "type": "string",
+            "description": "Timestamp when delivery was confirmed by carrier",
+            "example": "2026-10-06T14:35:10Z"
+          }
+        },
+        "required": [
+          "message_id",
+          "status"
+        ]
+      },
+      "AdminDashboardStatsDto": {
+        "type": "object",
+        "properties": {
+          "totalUsers": {
+            "type": "number",
+            "example": 48,
+            "description": "Total registered users in system"
+          },
+          "usersByRole": {
+            "type": "object",
+            "description": "Breakdown of users by role"
+          },
+          "usersByLanguage": {
+            "type": "object",
+            "description": "Breakdown of residents by language"
+          },
+          "totalZones": {
+            "type": "number",
+            "example": 2,
+            "description": "Total active community zones"
+          },
+          "incidentsByStatus": {
+            "type": "object",
+            "description": "Incidents count by status"
+          },
+          "alertStats": {
+            "type": "object",
+            "description": "Alert dispatch totals"
+          },
+          "hasUnreviewedTemplates": {
+            "type": "boolean",
+            "example": false,
+            "description": "Flag if templates need native review in production"
+          },
+          "systemStatus": {
+            "type": "object",
+            "description": "System infrastructure status"
+          }
+        },
+        "required": [
+          "totalUsers",
+          "usersByRole",
+          "usersByLanguage",
+          "totalZones",
+          "incidentsByStatus",
+          "alertStats",
+          "hasUnreviewedTemplates",
+          "systemStatus"
+        ]
+      },
+      "SecurityDashboardStatsDto": {
+        "type": "object",
+        "properties": {
+          "pendingReviewCount": {
+            "type": "number",
+            "example": 1,
+            "description": "Incidents currently awaiting verification"
+          },
+          "oldestPendingAgeMinutes": {
+            "type": "object",
+            "example": 12,
+            "description": "Age of oldest pending incident in minutes"
+          },
+          "alertingCount": {
+            "type": "number",
+            "example": 0,
+            "description": "Incidents currently in alert fan-out process"
+          },
+          "resolvedTodayCount": {
+            "type": "number",
+            "example": 4,
+            "description": "Incidents resolved today"
+          },
+          "peopleAtRiskCount": {
+            "type": "number",
+            "example": 37,
+            "description": "Estimated people within active incident blast zones"
+          },
+          "alertsSentToday": {
+            "type": "number",
+            "example": 41,
+            "description": "Total alerts sent today"
+          },
+          "failedAlertsToday": {
+            "type": "number",
+            "example": 0,
+            "description": "Failed alerts today needing retry"
+          }
+        },
+        "required": [
+          "pendingReviewCount",
+          "oldestPendingAgeMinutes",
+          "alertingCount",
+          "resolvedTodayCount",
+          "peopleAtRiskCount",
+          "alertsSentToday",
+          "failedAlertsToday"
+        ]
+      },
+      "ResidentDashboardStatsDto": {
+        "type": "object",
+        "properties": {
+          "zoneName": {
+            "type": "string",
+            "example": "Community A (North Ward)",
+            "description": "Resident home community zone"
+          },
+          "alertsEnabled": {
+            "type": "boolean",
+            "example": true,
+            "description": "Whether resident has SMS alerts enabled"
+          },
+          "preferredLanguage": {
+            "type": "string",
+            "example": "HAUSA",
+            "description": "Selected preferred language"
+          },
+          "recentCommunityAlerts": {
+            "description": "Recent verified public alerts in community",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "zoneName",
+          "alertsEnabled",
+          "preferredLanguage",
+          "recentCommunityAlerts"
+        ]
+      }
+    }
+  }
+}

@@ -1,124 +1,142 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🛡️ AEGIS API — Community Early-Warning System Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+> Production-grade early-warning alert delivery engine and incident management platform tailored for Nigerian communities.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 📋 Overview
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+**Aegis** is an automated community safety platform that enables verified security incident reporting and high-speed multilingual SMS broadcast fan-out.
 
-## Project setup
+### Core Capabilities:
+- **Dual-Pillar Recipient Selection:** Dispatches alerts to residents physically present within an incident blast radius (Haversine GPS geofence) **AND** to registered members of the affected community zone (`user.zoneId === incident.zoneId`), ensuring residents traveling or working away from home receive notifications to warn family members.
+- **Multilingual Messaging Engine:** Localizes emergency alerts into 5 languages (`ENGLISH`, `HAUSA`, `IGBO`, `YORUBA`, `PIDGIN`) with Hausa diacritics transliteration policy (`PRESERVE_DIACRITICS`) to prevent UCS-2 cost blowups.
+- **Four-Eyes Verification:** Strict finite state machine requiring two security officials to independently report and verify incidents before dispatching emergency broadcasts.
+- **BullMQ Queue & Worker:** 10-worker concurrency with 50 TPS telecom rate-limiting, role-based priority scheduling (`SECURITY` alerts dispatch before `RESIDENT` alerts), and exponential backoff retry.
+- **Resilience Engine:** Circuit breaker tripping on 10 consecutive gateway failures, periodic reconciler cron self-healing stuck alerts, and automatic recovery on system boot.
+- **Zero Coordinate Leakage Guard:** Cryptographic regex filtering prevents raw GPS coordinates from being transmitted in resident alert text, enforcing sanitized landmark and ward names.
+- **HttpOnly Cookie Authentication:** Dual delivery of access (15m) and refresh (7d) tokens via secure `HttpOnly` cookies and JSON response bodies.
 
+---
+
+## 🚀 Quickstart
+
+### Prerequisites
+- Node.js 20+ (Node 24 recommended)
+- PostgreSQL 15+
+- Redis 7+ (optional in local development; system includes transparent in-memory priority queue fallback)
+
+### 1. Installation
 ```bash
-$ yarn install
+git clone <repo-url> aegis-api
+cd aegis-api
+npm install
 ```
 
-## Compile and run the project
+### 2. Environment Configuration
+Create a `.env` file in the project root:
+```env
+NODE_ENV=development
+PORT=4000
+DATABASE_URL=postgresql://postgres:password@localhost:5432/aegis_db
+FRONTEND_URL=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000
 
-```bash
-# development
-$ yarn run start
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_PASSWORD=
 
-# watch mode
-$ yarn run start:dev
+JWT_ACCESS_SECRET=aegis-dev-super-secure-access-token-secret-key-32-chars!
+JWT_REFRESH_SECRET=aegis-dev-super-secure-refresh-token-secret-key-32-chars!
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=7d
 
-# production mode
-$ yarn run start:prod
+SMS_PROVIDER=fake
+SMS_SENDER_ID=AEGIS
+FAKE_SMS_FAIL_RATE=0.0
+FAKE_SMS_LATENCY_MS=50
+PRESERVE_DIACRITICS=false
+
+ALLOW_SELF_VERIFY=false
+ALLOW_UNREVIEWED_TEMPLATES=false
+INCIDENT_EXPIRY_MINUTES=60
+MAX_RECIPIENTS_PER_INCIDENT=2000
+
+WEBHOOK_HMAC_SECRET=aegis-webhook-dev-secret-key-signature
 ```
 
-## Run tests
-
+### 3. Database Migration & Seeding
 ```bash
-# unit tests
-$ yarn run test
+# Generate Prisma Client
+npm run prisma:generate
 
-# e2e tests
-$ yarn run test:e2e
+# Run Database Migrations
+npm run prisma:migrate
 
-# test coverage
-$ yarn run test:cov
+# Seed Demo Zones, Users, and Demo Incidents
+npm run seed
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
+### 4. Running the Application
 ```bash
-$ yarn install -g @nestjs/mau
-$ mau deploy
+# Development (with watch mode)
+npm run start:dev
+
+# Production Build & Execution
+npm run build
+npm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+API will be live at `http://localhost:4000/api/v1`
+Interactive Swagger Documentation: `http://localhost:4000/api/docs`
+Health Probes: `http://localhost:4000/health` and `http://localhost:4000/ready`
 
-## Observability
+---
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+## 👥 Seed Accounts
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+| Role | Phone | Email | Default Password | Zone |
+| :--- | :--- | :--- | :--- | :--- |
+| **ADMIN** | `+2348000000001` | `admin@aegis.ng` | `AdminSecure2026!` | Global System Admin |
+| **SECURITY** | `+2348020000001` | `officer1@aegis.ng` | `OfficerSecure2026!` | Community A (North Ward) |
+| **SECURITY** | `+2348020000002` | `officer2@aegis.ng` | `OfficerSecure2026!` | Community A (North Ward) |
+| **RESIDENT** | `+2348030000001` | `resident1@aegis.ng` | `ResidentSecure2026!` | Community A (Hausa) |
+| **RESIDENT** | `+2348030000004` | `resident4@aegis.ng` | `ResidentSecure2026!` | Community A (Yoruba) |
+| **RESIDENT** | `+2348030000007` | `resident7@aegis.ng` | `ResidentSecure2026!` | Community A (Igbo) |
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+*Note: Database seed includes 45+ residents distributed across Community A and Community B.*
 
-To add it to this project:
+---
 
+## 🧪 Automated Testing
+
+### 1. Jest Unit Test Suite
+Runs 60+ unit tests across Haversine math, Nigerian carrier normalization, GSM-7/UCS-2 character detection, risk scoring, template rendering, and state machine transition rules:
 ```bash
-$ yarn install @nestjs/observe
+npm run test
 ```
 
-Then follow the [setup guide](https://docs.nestjs.com/observability/overview) - it takes a single import and an app key.
+### 2. End-to-End & Integration Test Suites
+Executes real PostgreSQL and Redis integration tests:
+```bash
+# Day 5 Incident Lifecycle & State Machine Tests
+npx ts-node test/test-day5.ts
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+# Day 6 SMS Encoding & HMAC Webhook Tests
+npx ts-node test/test-day6.ts
 
-## Resources
+# Day 7 BullMQ Worker, Priority Dispatch & Reconciler Tests
+npx ts-node test/test-day7.ts
 
-Check out a few resources that may come in handy when working with NestJS:
+# Day 8 Full End-to-End Lifecycle & Concurrency Race Suite
+npx ts-node test/test-day8-e2e.ts
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+---
 
-## Support
+## 📖 Documentation & Runbooks
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- [`ARCHITECTURE.md`](file:///c:/Users/Dell/Desktop/aegis-api/ARCHITECTURE.md): Complete architecture diagrams, finite state machine, PostGIS migration path, and Phase 2 extension points.
+- [`RUNBOOK.md`](file:///c:/Users/Dell/Desktop/aegis-api/RUNBOOK.md): SRE and operator runbook for stuck alert triage, provider outages, circuit breaker resets, and false alarm procedures.
+- [`ASSUMPTIONS.md`](file:///c:/Users/Dell/Desktop/aegis-api/ASSUMPTIONS.md): Comprehensive log of all architectural tradeoffs, design choices, and compliance models.
+- [`openapi.json`](file:///c:/Users/Dell/Desktop/aegis-api/openapi.json): Standalone OpenAPI specification export.

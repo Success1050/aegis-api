@@ -170,23 +170,23 @@
   - `POST /incidents/:id/alerts/retry-failed`: manual retry for failed alerts.
 
 ### Day 8: Automated Testing, Hardening & Production Documentation
-- [ ] **Unit Test Suite:**
+- [x] **Unit Test Suite:**
   - Haversine calculation against known distances & boundary edge cases.
   - Phone normalization across all Nigerian carrier formats.
   - GSM-7 / UCS-2 character classification & segment calculation.
   - Template rendering across all 5 languages.
   - Risk calculation function (`risk.util.ts`).
   - State machine transition matrix (all valid and invalid transitions).
-- [ ] **Integration & E2E Test Suite (Real Postgres & Redis):**
+- [x] **Integration & E2E Test Suite (Real Postgres & Redis):**
   - Full happy path flow (create → preview → verify → fanout → delivery).
-  - 10 parallel verify requests race test (assert exactly one fanout of 41 alerts).
+  - 10 parallel verify requests race test (assert exactly one fanout of 42 alerts).
   - Idempotency key replay test.
   - Auto-expiry of stale pending incidents.
   - Delivery webhook HMAC signature verification.
   - Zero-recipient and large-blast guard tests.
-- [ ] **Documentation Deliverables:**
+- [x] **Documentation Deliverables:**
   - `README.md` (quickstart, env vars, demo script).
   - `ARCHITECTURE.md` (system diagrams, state machine, PostGIS upgrade path, Phase 2 camera/AI ingestion hooks).
   - `ASSUMPTIONS.md` (documented design decisions).
   - `RUNBOOK.md` (operational runbook for stuck alerts, provider outages, false alert response).
-  - OpenAPI JSON/YAML export.
+  - OpenAPI JSON/YAML export (`openapi.json`).

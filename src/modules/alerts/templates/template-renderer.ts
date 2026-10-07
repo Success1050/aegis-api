@@ -5,7 +5,7 @@ import {
   RenderedAlertResult,
   TemplateReviewStatus,
 } from './template.types';
-import { calculateSmsSegments, normalizeForSms } from '../../../common';
+import { calculateSmsSegments, normalizeForSms } from '../../../common/utils/sms-encoding.util';
 
 /**
  * Checks if a string contains numeric coordinates (e.g. "9.0765, 7.3985")

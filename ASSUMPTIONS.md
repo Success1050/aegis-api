@@ -127,3 +127,48 @@ This document records all assumptions, default decisions, and architectural trad
      - On `/auth/logout`, the server clears both cookies and revokes the active refresh session in the backend.
 
 
+
+
+---
+
+## 8. Multilingual Templates & Coordinate Protection
+
+1. **Native Review Status Policy:**  
+   - English and Hausa are marked `APPROVED`.
+   - Igbo, Yoruba, and Pidgin are marked `NEEDS_NATIVE_REVIEW`.
+   - By default (`ALLOW_UNREVIEWED_TEMPLATES=false`), requests for unreviewed translations safely fall back to English to prevent mistranslations during high-stress emergencies.
+   - Fail-loud validation: if any placeholder (`{incidentNumber}`, `{type}`, `{areaName}`, `{time}`) cannot be resolved, template rendering throws immediately rather than broadcasting broken messages.
+
+2. **Zero Coordinate Leakage Guard:**  
+   - Raw GPS coordinates (e.g. `9.0765, 7.3985` or `lat 9.07, lng 7.39`) are strictly forbidden in resident alert messages.
+   - Alerts only use human-readable landmark or community zone names (`areaName`). Any attempt to embed numeric coordinates triggers an immediate security validation exception.
+
+---
+
+## 9. BullMQ Queue, Priority Scheduling & Resilience
+
+1. **Priority Hierarchy:**  
+   - `SECURITY` alerts take precedence over `RESIDENT` alerts.
+   - Within each role group, higher severity (`CRITICAL` > `HIGH` > `MEDIUM` > `LOW`) alerts are processed first.
+   - Implemented via dynamic BullMQ job priority calculation: `priority = (role === 'SECURITY' ? 10 : 20) + severityOffset`.
+
+2. **Transparent In-Memory Priority Fallback:**  
+   - If Redis is offline or undergoing maintenance, the alert queue system seamlessly falls back to an in-memory priority queue engine so emergency dispatches and local development never crash.
+   - When Redis is available, BullMQ executes with a concurrency of 10 and a rate limiter of 50 TPS.
+
+3. **Circuit Breaker Pattern:**  
+   - Tracks consecutive carrier dispatch failures.
+   - If 10 consecutive failures occur, the circuit breaker transitions to `OPEN` and pauses the dispatch queue, preventing carrier spam and preserving operational SMS credits.
+   - Auto-tests provider health with a probe dispatch after 60 seconds (`HALF_OPEN`).
+
+4. **Self-Healing Reconciler & Boot Recovery:**  
+   - Reconciler cron runs every 5 minutes: resets stranded alerts stuck in `SENDING` for $>15$ minutes back to `QUEUED` and finalizes stuck incidents.
+   - System boot hook scans and re-enqueues all non-terminal alerts on server startup.
+
+---
+
+## 10. Automated Testing & Package Integrity
+
+1. **Zero Package Downgrade Policy:**  
+   - Modern dependencies (`@nestjs/jwt` v12, `@nestjs/core` v11, `bullmq` v5, Prisma v6) are preserved without downgrading.
+   - ESM-only dependencies (e.g. `@nestjs/swagger`) are isolated so unit tests and builds run with zero bundle errors.
