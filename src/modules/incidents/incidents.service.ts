@@ -36,15 +36,7 @@ import { maskPhone } from '../../common/utils/pii.util';
 import { renderAlertTemplate } from '../alerts/templates';
 import { AlertQueueService } from '../alerts/queue/alert-queue.service';
 
-export const INCIDENT_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
-  PENDING_REVIEW: [IncidentStatus.VERIFIED, IncidentStatus.DISMISSED],
-  VERIFIED: [IncidentStatus.ALERTING],
-  ALERTING: [IncidentStatus.ALERTS_SENT, IncidentStatus.ALERTS_PARTIALLY_FAILED],
-  ALERTS_SENT: [IncidentStatus.RESOLVED],
-  ALERTS_PARTIALLY_FAILED: [IncidentStatus.RESOLVED, IncidentStatus.ALERTING],
-  DISMISSED: [],
-  RESOLVED: [],
-};
+export * from './incident-transitions';
 
 @Injectable()
 export class IncidentsService {

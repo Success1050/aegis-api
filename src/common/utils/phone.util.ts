@@ -28,8 +28,11 @@ export function normalizeNigerianPhone(input: string): string {
 
   const raw = input.trim();
   const parsed = parsePhoneNumberFromString(raw, 'NG');
-  if (parsed && parsed.isValid()) {
-    return parsed.format('E.164');
+  if (parsed && parsed.isValid() && parsed.country === 'NG') {
+    const formatted = parsed.format('E.164');
+    if (formatted.length === 14) {
+      return formatted;
+    }
   }
 
   // Fallback cleanup for common local Nigerian formats
